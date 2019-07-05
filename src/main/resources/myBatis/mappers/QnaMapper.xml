@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="QnaMapper" >
+	<!-- parameterType 에서 #{} 를 가져옴 -->
+	
+	
+	<!-- Query 조각 -->
+	<sql id="subRef">
+		(select ref from qna where num=#{num})
+	</sql>
+	<sql id="subStep">
+		(select step from qna where num=#{num})
+	</sql>
+
+
+
+	
+	<!-- paging 처리를 위한 sql -->
+	<select id="getCount" resultType="Integer" parameterType="com.yr.util.PageMaker">
+		<!-- kind : 1(title), 2(writer), 3(contents) -->
+		select count(num) from qna
+		<!-- 
+		<if test="kind=='1'">
+			 where title like '%' ||#{search}|| '%'
+		</if>
+		<if test="kind=='2'">
+			 where writer like '%' ||#{search}|| '%'
+		</if>
+		<if test="kind=='3'">
+			 where contents like '%' ||#{search}|| '%'
+		</if>
+		-->
+	<choose>
+		<when test="kind==1">
+			where title
+		</when>
+		<when test="kind==2">
+			where writer
+		</when>
+		<otherwise>
+			where contents
+		</otherwise>
+	</choose>
+	like '%'||#{search}||'%'
+	</select>
+
+	<insert id="setWrite" parameterType="QnaDTO">
+				<!-- sql문의 결과 값을 넣을 변수 -->	<!-- 결과 타입 -->
+		<selectKey keyProperty="num" resultType="Integer" order="BEFORE">
+			select notice_seq.nextval from dual
+		</selectKey>
+		insert into qna values(#{num}, #{title}, #{writer}, #{contents}, sysdate, 0, #{num}, 0, 0)
+						<!-- #{num} selectKey 의 값을 받아옴 -->
+	</insert>
+	
+	<update id="setUpdate" parameterType="QnaDTO">
+		update qna set title=#{title}, contents=#{contents} where num=#{num}
+	 </update>
+	
+	<delete id="setDelete" parameterType="Integer">
+		delete qna where num=#{num}
+	</delete>
+
+	<select id="getList" resultType="QnaDTO" parameterType="com.yr.util.PageMaker">
+	 	select * from
+	 	(select rownum R, Q.* from
+	 	(select * from qna 
+	 	
+	 	<choose>
+			<when test="kind==1">
+				where title
+			</when>
+			<when test="kind==2">
+				where writer
+			</when>
+			<otherwise>
+				where contents
+			</otherwise>
+			</choose>
+		like '%' ||#{search}|| '%'
+	
+	 	order by ref desc, step asc) Q)
+	 			<!-- 원본글/답글 순으로 정렬해야 함 -->
+	 	where R between #{startRow} and #{lastRow}
+	</select>
+	
+				<!-- 1. 부모글 select  <- 부모의 첨부파일까지 가져오게됨 
+					 2. 부모글 사전작업 update
+					 3. insert - 부모의 ref, step, depth가 필요		 
+				 -->
+	<!--  답글 사전 작업 -->
+	
+	<!-- 부모의 글 번호밖에 모름 - 부모의 글 번호로 ref/step을 꺼내오자 -->
+	<update id="setReplyUpdate" parameterType="QnaDTO">
+		update qna set step=step+1 
+		where ref=<include refid="subRef" />   <!-- query 조각으로 저장해둔 sql문을 참조함 -->
+		and 
+		step > <include refid="subStep" />
+	</update>
+	
+	<!-- 답글 -->
+	<insert id="setReply" parameterType="QnaDTO">
+		insert into qna values(notice_seq.nextval, #{title}, #{writer}, #{contents}, sysdate, 0,
+		<include refid="subRef" />,
+		<include refid="subStep" />+1,
+		(select depth from qna where num=#{num})+1 
+		)
+	</insert>
+	
+	
+	<resultMap type="QnaDTO" id="qnaResult">
+		<!-- primary Key -->
+		<!-- property : DTO의 멤버변수명 / column : DB의 컬럼명. 조회 결과물의 컬럼명  -->
+		<id property="num" column="num" />
+		<result property="writer" column="writer" />
+		<result property="title" column="title" />
+		<result property="contents" column="contents" />
+		<result property="reg_date" column="reg_date" />
+		<result property="hit" column="hit" />
+		<!-- DTO 안에 여러개의 데이터
+					* 한 개 : <association>
+				-->
+																<!-- 자바 타입 -->			<!-- List 안에 들어갈 type -->								
+		<collection resultMap="fileResult" property="files" javaType="java.util.ArrayList" ofType="FileDTO"  />
+	</resultMap>
+	<!-- 외부 resultMap -->
+	<resultMap type="FileDTO" id="fileResult">
+		<id property="fnum" column="fnum" />
+		<result property="num" column="num" />
+		<result property="fname" column="fname" />
+		<result property="oname" column="oname" />
+	</resultMap>
+
+				<!-- qna 테이블에서 files의 결과 개수만큼 결과를 뿌려줘야함 
+						- resultMap -->
+	 <select id="getSelect" resultMap="qnaResult" parameterType="Integer">
+	 	select Q.*, F.*
+		from qna Q full join files F on (Q.num=F.num)
+		where Q.num=#{num}
+	 
+	 </select>
+	 
+</mapper>
+
+
+
+
+
+
+
+
+
