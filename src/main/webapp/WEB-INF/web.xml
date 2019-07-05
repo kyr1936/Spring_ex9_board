@@ -3,6 +3,34 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee https://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
 
+	<!-- Spring에서 제공하는  Encoding Filter -->
+	<filter>
+		<fileter-name> encode </fileter-name>
+		<fileter-class>org.springframework.web.filter.CharacterEncodingFilter</fileter-class>
+		<init-parama>
+			<param-name>encoding</param-name>
+			<param-value>UTF-8</param-value>
+		</init-parama>
+	</filter>
+	<fiter-mapping>
+		<filter-name>encode</filter-name>
+		<url-mapping>/*</url-mapping>
+	</fiter-mapping>
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	<!-- The definition of the Root Spring Container shared by all Servlets and Filters -->
 	<context-param>
 		<param-name>contextConfigLocation</param-name>
